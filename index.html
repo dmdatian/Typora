@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1017" />
+    <meta
+      name="description"
+      content="Race a friend or a bot in Typora. Test your typing speed, accuracy, and personal best."
+    />
+    <title>Typora — Typing Speed Challenge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/config.js"></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Typora home">
+          <span class="brand-mark" aria-hidden="true">T<span>.</span></span>
+          <span>typora</span>
+        </a>
+        <a class="top-link" href="#leaderboard">Leaderboard <span aria-hidden="true">↗</span></a>
+      </header>
+
+      <main>
+        <section class="intro" aria-labelledby="page-title">
+          <div class="eyebrow"><span class="live-dot"></span> YOUR NEXT RACE STARTS HERE</div>
+          <h1 id="page-title">Ready, set, <span>type.</span></h1>
+          <p>Practice solo, challenge a bot, or race a friend in real time.</p>
+        </section>
+
+        <section class="mode-section" aria-label="Choose a game mode">
+          <div class="mode-heading">
+            <span class="eyebrow">CHOOSE YOUR MODE</span>
+            <span class="mode-hint">Same passage. Fastest fingers win.</span>
+          </div>
+          <div class="mode-picker" role="group" aria-label="Game mode">
+            <button class="mode-button is-selected" type="button" data-mode="solo" aria-pressed="true">
+              <span class="mode-icon" aria-hidden="true">⌁</span>
+              <span class="mode-copy"><strong>Solo practice</strong><small>Beat your personal best</small></span>
+              <span class="mode-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="mode-button" type="button" data-mode="bot" aria-pressed="false">
+              <span class="mode-icon" aria-hidden="true">◈</span>
+              <span class="mode-copy"><strong>Race a bot</strong><small>Take on a quick typer</small></span>
+              <span class="mode-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="mode-button" type="button" data-mode="multiplayer" aria-pressed="false">
+              <span class="mode-icon" aria-hidden="true">↗</span>
+              <span class="mode-copy"><strong>Multiplayer</strong><small>Create or join a room</small></span>
+              <span class="mode-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+          <div class="multiplayer-lobby" id="multiplayer-lobby" hidden>
+            <div class="lobby-intro">
+              <div>
+                <strong>Race a friend</strong>
+                <p>Share a room code and start when your opponent joins.</p>
+              </div>
+              <span class="lobby-status" id="lobby-status" role="status">Connect to the game server to play.</span>
+            </div>
+            <div class="lobby-controls">
+              <label class="sr-only" for="room-player-name">Your multiplayer name</label>
+              <input id="room-player-name" type="text" maxlength="20" placeholder="Your name" autocomplete="nickname" />
+              <button class="lobby-button" id="create-room-button" type="button">Create room</button>
+              <span class="lobby-or">OR</span>
+              <label class="sr-only" for="room-code-input">Room code</label>
+              <input id="room-code-input" class="room-code-input" type="text" maxlength="6" placeholder="ROOM CODE" autocomplete="off" />
+              <button class="lobby-button lobby-button-secondary" id="join-room-button" type="button">Join</button>
+            </div>
+            <div class="room-invite" id="room-invite" hidden>
+              <span>ROOM CODE</span>
+              <strong id="room-code-display"></strong>
+              <span id="room-players"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="game-card" aria-label="Typing speed test">
+          <div class="game-toolbar">
+            <div class="duration-picker" role="group" aria-label="Test duration">
+              <button class="duration-button" type="button" data-duration="15">15 sec</button>
+              <button class="duration-button" type="button" data-duration="30">30 sec</button>
+              <button class="duration-button is-selected" type="button" data-duration="60">60 sec</button>
+            </div>
+            <div class="toolbar-right">
+              <span class="status-label" id="game-status">READY WHEN YOU ARE</span>
+              <button class="icon-button" id="restart-button" type="button" aria-label="Restart test" title="Restart test">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="opponent-panel" id="opponent-panel" hidden>
+            <div class="opponent-avatar" aria-hidden="true">✦</div>
+            <div class="opponent-info">
+              <div class="opponent-caption"><span>YOUR OPPONENT</span><span id="opponent-status">WAITING</span></div>
+              <strong id="opponent-name">Typora bot</strong>
+              <div class="opponent-track"><span id="opponent-progress"></span></div>
+            </div>
+            <div class="opponent-score"><strong id="opponent-wpm">0</strong><span>WPM</span></div>
+          </div>
+
+          <div class="metrics" aria-label="Live results">
+            <div class="metric">
+              <span class="metric-label">WPM</span>
+              <span class="metric-value" id="wpm-value">0</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">ACCURACY</span>
+              <span class="metric-value" id="accuracy-value">100<span class="unit">%</span></span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">TIME</span>
+              <span class="metric-value" id="time-value">60<span class="unit">s</span></span>
+            </div>
+            <div class="metric personal-best">
+              <span class="metric-label">PERSONAL BEST</span>
+              <span class="metric-value" id="best-value">—<span class="unit">wpm</span></span>
+            </div>
+          </div>
+
+          <div class="passage-area" id="passage-area">
+            <p class="passage" id="passage" aria-hidden="true"></p>
+            <textarea
+              class="typing-input"
+              id="typing-input"
+              aria-label="Type the passage shown above"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              rows="1"
+              disabled
+            ></textarea>
+            <button class="start-prompt" id="start-prompt" type="button">
+              <span class="prompt-icon" aria-hidden="true">⌨</span>
+              Click here and start typing
+            </button>
+          </div>
+
+          <div class="game-footer">
+            <p class="keyboard-hint">Type to begin <span class="hint-divider">·</span> <kbd>esc</kbd> to restart</p>
+            <span class="character-count" id="character-count">0 / 0</span>
+          </div>
+        </section>
+
+        <section class="result-card" id="result-card" aria-live="polite" hidden>
+          <div class="result-heading">
+            <div>
+              <span class="eyebrow">TEST COMPLETE</span>
+              <h2 id="result-title">Nice work.</h2>
+            </div>
+            <div class="result-wpm"><span id="result-wpm">0</span><small>WPM</small></div>
+          </div>
+          <div class="result-details">
+            <span><strong id="result-accuracy">0%</strong> accuracy</span>
+            <span class="result-divider"></span>
+            <span id="result-message">Keep practicing to beat your best.</span>
+          </div>
+          <div class="save-score" id="save-score">
+            <label for="player-name">Add your score to the leaderboard</label>
+            <div class="save-controls">
+              <input id="player-name" type="text" maxlength="20" placeholder="Your name" autocomplete="nickname" />
+              <button class="save-button" id="save-button" type="button">Save score <span aria-hidden="true">→</span></button>
+            </div>
+            <p class="save-message" id="save-message" role="status"></p>
+          </div>
+        </section>
+
+        <section class="leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">THE COMMUNITY</span>
+              <h2 id="leaderboard-title">Top typists<span class="heading-dot">.</span></h2>
+            </div>
+            <span class="leaderboard-note">ALL-TIME BEST</span>
+          </div>
+          <div class="leaderboard-card">
+            <div class="leaderboard-header">
+              <span>RANK</span><span>PLAYER</span><span>ACCURACY</span><span>WPM</span>
+            </div>
+            <ol class="leaderboard-list" id="leaderboard-list">
+              <li class="leaderboard-empty">Connect the leaderboard to see top scores.</li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="how-section" aria-label="How scoring works">
+          <div class="how-item">
+            <span class="how-number">01</span>
+            <div><h3>Words per minute</h3><p>Correct characters ÷ 5, adjusted for time.</p></div>
+          </div>
+          <div class="how-item">
+            <span class="how-number">02</span>
+            <div><h3>Accuracy</h3><p>Correct keystrokes as a percentage of all keystrokes.</p></div>
+          </div>
+          <div class="how-item">
+            <span class="how-number">03</span>
+            <div><h3>Your personal best</h3><p>Saved on this device, so you can keep improving.</p></div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <a class="brand footer-brand" href="/"><span class="brand-mark" aria-hidden="true">T<span>.</span></span><span>typora</span></a>
+        <span>Small steps. Faster fingers.</span>
+      </footer>
+    </div>
+  </body>
+</html>
