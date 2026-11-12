@@ -53,6 +53,22 @@ input:focus-visible {
   margin: 0 auto;
 }
 
+.notification-toast {
+  position: fixed;
+  z-index: 10;
+  right: 20px;
+  bottom: 20px;
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 14px 18px;
+  border: 1px solid #526a3c;
+  border-radius: 9px;
+  background: #151f2b;
+  box-shadow: 0 12px 36px rgb(0 0 0 / 35%);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .topbar,
 .footer {
   display: flex;

@@ -167,10 +167,10 @@
             <span id="result-message">Keep practicing to beat your best.</span>
           </div>
           <div class="save-score" id="save-score">
-            <label for="player-name">Add your score to the leaderboard</label>
+            <label for="player-name">Enter your name; scores save automatically</label>
             <div class="save-controls">
               <input id="player-name" type="text" maxlength="20" placeholder="Your name" autocomplete="nickname" />
-              <button class="save-button" id="save-button" type="button">Save score <span aria-hidden="true">→</span></button>
+              <button class="save-button" id="save-button" type="button">Save now <span aria-hidden="true">→</span></button>
             </div>
             <p class="save-message" id="save-message" role="status"></p>
           </div>
@@ -215,5 +215,6 @@
         <span>Small steps. Faster fingers.</span>
       </footer>
     </div>
+    <div class="notification-toast" id="notification" role="status" aria-live="polite" hidden></div>
   </body>
 </html>

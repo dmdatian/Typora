@@ -54,9 +54,9 @@ If you use a custom Vercel domain, add its exact origin to `FRONTEND_ORIGIN` too
 
 ## How to play
 
-- **Solo practice:** type the passage and try to beat the personal best saved in your browser.
+- **Solo practice:** type the passage and try to beat the personal best saved in your browser. Scores save to the leaderboard automatically after a run when a name is available; enter a name on your first run and it is remembered on this device.
 - **Race a bot:** choose a duration, then type; the bot races at a randomly selected speed.
-- **Multiplayer:** choose a duration, enter a name, and create a room. Share the six-character room code with one friend. They choose Multiplayer, enter their name and the code, then either player can start the race by typing.
+- **Multiplayer:** choose a duration, enter a name, and create a room. Share the six-character room code with one friend. They choose Multiplayer, enter their name and the code, then either player can start the race by typing. A notification appears when the opponent joins, and each player's score is saved automatically after their race.
 - Use the restart button to start a new passage or rematch. Multiplayer requires the Render API URL to be set in `config.js`.
 
 ## Local API development

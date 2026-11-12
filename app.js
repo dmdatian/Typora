@@ -16,6 +16,7 @@
 
   const BEST_KEY = "typora.personalBest";
   const LEGACY_BEST_KEY = "typefast.personalBest";
+  const SCORE_NAME_KEY = "typora.scoreName";
   const state = {
     duration: 60,
     mode: "solo",
@@ -34,7 +35,10 @@
     roomStarted: false,
     roomPlayers: [],
     lastProgressAt: 0,
-    playerName: ""
+    playerName: "",
+    scoreSavingFor: null,
+    scoreSavedFor: null,
+    notificationTimeoutId: null
   };
 
   const elements = {
@@ -69,6 +73,7 @@
     roomInvite: document.querySelector("#room-invite"),
     roomCodeDisplay: document.querySelector("#room-code-display"),
     roomPlayers: document.querySelector("#room-players"),
+    notification: document.querySelector("#notification"),
     opponentPanel: document.querySelector("#opponent-panel"),
     opponentName: document.querySelector("#opponent-name"),
     opponentStatus: document.querySelector("#opponent-status"),
@@ -104,12 +109,22 @@
     elements.lobbyStatus.classList.toggle("is-error", isError);
   }
 
+  function showNotification(message) {
+    elements.notification.textContent = message;
+    elements.notification.hidden = false;
+    window.clearTimeout(state.notificationTimeoutId);
+    state.notificationTimeoutId = window.setTimeout(() => {
+      elements.notification.hidden = true;
+    }, 4000);
+  }
+
   function prepareRoomRound(room) {
     window.clearInterval(state.intervalId);
     state.intervalId = null;
     state.startedAt = null;
     state.isFinished = false;
     state.finalResult = null;
+    state.scoreSavedFor = null;
     state.duration = room.duration;
     state.passage = room.passage;
     state.roomRound = room.round;
@@ -136,8 +151,11 @@
 
   function handleRoomUpdate(room) {
     if (state.mode !== "multiplayer") return;
+    const hadOpponent = state.roomPlayers.some((player) => player.id !== state.socket?.id);
+    const opponent = room.players.find((player) => player.id !== state.socket?.id);
     state.roomCode = room.code;
     state.roomPlayers = room.players;
+    if (opponent && !hadOpponent) showNotification(`${opponent.name} is here!`);
     elements.roomInvite.hidden = false;
     elements.roomCodeDisplay.textContent = room.code;
     elements.roomPlayers.textContent = room.players.length === 2
@@ -226,6 +244,7 @@
           state.roomCode = null;
           state.roomReady = false;
           state.roomStarted = false;
+          state.roomPlayers = [];
           elements.roomInvite.hidden = true;
           if (state.mode === "multiplayer") {
             setLobbyStatus("Your opponent left the room. Create or join another room.", true);
@@ -323,6 +342,15 @@
     }
   }
 
+  function getSavedScoreName() {
+    try {
+      return localStorage.getItem(SCORE_NAME_KEY) || "";
+    } catch (error) {
+      console.warn("Could not read the saved leaderboard name.", error);
+      return "";
+    }
+  }
+
   function updateBestDisplay() {
     const best = getBest();
     elements.best.innerHTML = `${best || "—"}<span class="unit">wpm</span>`;
@@ -358,6 +386,7 @@
     state.startedAt = null;
     state.isFinished = false;
     state.finalResult = null;
+    state.scoreSavedFor = null;
     state.roomStarted = false;
     state.botWpm = 0;
     state.passage = choosePassage();
@@ -506,6 +535,15 @@
     updateBestDisplay();
     elements.resultCard.hidden = false;
     elements.resultCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const scoreName = state.mode === "multiplayer"
+      ? state.playerName.trim()
+      : elements.playerName.value.trim();
+    if (scoreName) {
+      elements.playerName.value = scoreName;
+      void saveScore();
+    } else {
+      elements.saveMessage.textContent = "Enter your name to save this score automatically.";
+    }
   }
 
   function makeLeaderboardRow(score, index) {
@@ -547,20 +585,25 @@
   }
 
   async function saveScore() {
-    if (!state.finalResult) return;
+    const result = state.finalResult;
+    if (!result || state.scoreSavedFor === result || state.scoreSavingFor === result) return;
     const apiUrl = getApiUrl();
     if (!apiUrl) {
       elements.saveMessage.textContent = "Leaderboard is not configured yet. Your personal best is saved on this device.";
       return;
     }
-    const name = elements.playerName.value.trim() || state.playerName;
+    const name = elements.playerName.value.trim() || state.playerName.trim();
     if (!name) {
-      elements.saveMessage.textContent = "Enter a name to save your score.";
+      elements.saveMessage.textContent = "Enter your name to save this score automatically.";
+      return;
+    }
+    if (!/^[\p{L}\p{N} _.-]{2,20}$/u.test(name)) {
+      elements.saveMessage.textContent = "Use 2–20 letters, numbers, spaces, dots, or dashes for your name.";
       elements.saveMessage.classList.add("is-error");
-      elements.playerName.focus();
       return;
     }
 
+    state.scoreSavingFor = result;
     elements.saveButton.disabled = true;
     elements.saveMessage.textContent = "Saving your score…";
     elements.saveMessage.classList.remove("is-error");
@@ -568,19 +611,29 @@
       const response = await fetch(`${apiUrl}/api/scores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, ...state.finalResult })
+        body: JSON.stringify({ name, ...result })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || `Could not save score (${response.status}).`);
+      state.scoreSavedFor = result;
+      try {
+        localStorage.setItem(SCORE_NAME_KEY, name);
+      } catch (error) {
+        console.warn("Could not remember the leaderboard name on this device.", error);
+      }
+      if (state.finalResult !== result) return;
       elements.saveMessage.textContent = "Score saved. Nice typing!";
-      elements.playerName.value = "";
+      elements.playerName.value = name;
       await loadLeaderboard();
     } catch (error) {
       console.error("Could not save the score.", error);
-      elements.saveMessage.textContent = error.message || "Could not save your score. Try again.";
-      elements.saveMessage.classList.add("is-error");
+      if (state.finalResult === result) {
+        elements.saveMessage.textContent = error.message || "Could not save your score. Try again.";
+        elements.saveMessage.classList.add("is-error");
+      }
     } finally {
-      elements.saveButton.disabled = false;
+      if (state.scoreSavingFor === result) state.scoreSavingFor = null;
+      if (state.finalResult === result) elements.saveButton.disabled = false;
     }
   }
 
@@ -637,6 +690,9 @@
     elements.roomCodeInput.value = elements.roomCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
   });
   elements.saveButton.addEventListener("click", saveScore);
+  elements.playerName.addEventListener("change", () => {
+    if (state.finalResult) void saveScore();
+  });
   elements.playerName.addEventListener("keydown", (event) => {
     if (event.key === "Enter") saveScore();
   });
@@ -651,6 +707,7 @@
     }
   });
 
+  elements.playerName.value = getSavedScoreName();
   resetGame();
   loadLeaderboard();
 })();
