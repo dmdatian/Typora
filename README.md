@@ -54,9 +54,8 @@ If you use a custom Vercel domain, add its exact origin to `FRONTEND_ORIGIN` too
 
 ## How to play
 
-- **Solo practice:** type the passage and try to beat the personal best saved in your browser. Scores save to the leaderboard automatically after a run when a name is available; enter a name on your first run and it is remembered on this device.
-- **Race a bot:** choose a duration, then type; the bot races at a randomly selected speed.
-- **Multiplayer:** choose a duration, enter a name, and create a room. Share the six-character room code with one friend. They choose Multiplayer, enter their name and the code, then either player can start the race by typing. A notification appears when the opponent joins, and each player's score is saved automatically after their race.
+- **Solo practice and bot:** complete the entire passage with no mistakes to unlock a harder passage on the next run, up to three difficulty levels. The difficulty is remembered on this device; the bot races at a randomly selected speed.
+- **Multiplayer:** choose a duration, enter a name, and create a room. Share the six-character room code with one friend. They choose Multiplayer, enter their name and the code, then either player can start the race by typing. A notification appears when the opponent joins. If either player completes the whole passage without mistakes, the next rematch uses a harder passage. Each player's score is saved automatically after their race.
 - Use the restart button to start a new passage or rematch. Multiplayer requires the Render API URL to be set in `config.js`.
 
 ## Local API development
@@ -73,8 +72,8 @@ Do not commit `.env`. For local browser testing, set `FRONTEND_ORIGIN` to the lo
 ## API routes
 
 - `GET /health` — service health check.
-- `GET /api/leaderboard` — top 10 scores by WPM.
-- `POST /api/scores` — validates and saves a score to Firestore.
+- `GET /api/leaderboard` — top 10 unique usernames by WPM, showing each username's highest score.
+- `POST /api/scores` — validates a score and updates that username's best in Firestore. Usernames are matched case-insensitively.
 - Socket.IO events — creates/joins two-player rooms and exchanges race progress/results.
 
 Scores are not tied to authenticated accounts or verified typing sessions, so a determined user can submit a fake leaderboard score. The bot is a local opponent, and multiplayer room state is temporary. Do not use this leaderboard for prizes or other high-stakes competitions without adding authentication and server-verified test sessions.

@@ -44,17 +44,17 @@
           <div class="mode-picker" role="group" aria-label="Game mode">
             <button class="mode-button is-selected" type="button" data-mode="solo" aria-pressed="true">
               <span class="mode-icon" aria-hidden="true">⌁</span>
-              <span class="mode-copy"><strong>Solo practice</strong><small>Beat your personal best</small></span>
+              <span class="mode-copy"><strong>Solo practice</strong><small>Perfect passages get harder</small></span>
               <span class="mode-check" aria-hidden="true">✓</span>
             </button>
             <button class="mode-button" type="button" data-mode="bot" aria-pressed="false">
               <span class="mode-icon" aria-hidden="true">◈</span>
-              <span class="mode-copy"><strong>Race a bot</strong><small>Take on a quick typer</small></span>
+              <span class="mode-copy"><strong>Race a bot</strong><small>Perfect passages raise difficulty</small></span>
               <span class="mode-check" aria-hidden="true">✓</span>
             </button>
             <button class="mode-button" type="button" data-mode="multiplayer" aria-pressed="false">
               <span class="mode-icon" aria-hidden="true">↗</span>
-              <span class="mode-copy"><strong>Multiplayer</strong><small>Create or join a room</small></span>
+              <span class="mode-copy"><strong>Multiplayer</strong><small>Perfect runs unlock harder rematches</small></span>
               <span class="mode-check" aria-hidden="true">✓</span>
             </button>
           </div>
@@ -105,7 +105,7 @@
             <div class="opponent-info">
               <div class="opponent-caption"><span>YOUR OPPONENT</span><span id="opponent-status">WAITING</span></div>
               <strong id="opponent-name">Typora bot</strong>
-              <div class="opponent-track"><span id="opponent-progress"></span></div>
+              <div class="opponent-track"><span id="opponent-progress" aria-hidden="true"></span></div>
             </div>
             <div class="opponent-score"><strong id="opponent-wpm">0</strong><span>WPM</span></div>
           </div>

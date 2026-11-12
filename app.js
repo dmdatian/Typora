@@ -13,10 +13,30 @@
     "Practice turns effort into instinct. Show up with patience, notice what improves, and celebrate the progress you make.",
     "On a clear night, the stars remind us how much there is to explore. Wonder is a wonderful place to begin."
   ];
+  const passageTiers = [
+    passages,
+    [
+      "At 7:30, Nina checked 12 labels, crossed out 3 duplicates, and filed the final report before lunch.",
+      "Please compare the two drafts: version A is concise, but version B includes 4 details we still need.",
+      "\"Plan, test, revise\" is a simple rule; follow each step, then record what changed.",
+      "On Thursday, we packed 6 blue folders, 2 maps, and a spare charger for the afternoon workshop.",
+      "A clear answer needs three parts: the key fact, a useful example, and one final check."
+    ],
+    [
+      "At 08:45, the team logged 3.2 km, checked 14 samples, and marked each result as \"pass\" or \"review.\"",
+      "Before shipping v2.4, verify the checksum (8F3A), inspect the 2nd report, and confirm every file name.",
+      "If x = 12 and y = 7, then x - y = 5; test the calculation twice before saving the result.",
+      "Mira's checklist reads: (1) measure, (2) compare, (3) record; never skip the final verification.",
+      "The backup path is /archive/2026-11; confirm the date, permissions, and file count before you continue."
+    ]
+  ];
 
   const BEST_KEY = "typora.personalBest";
   const LEGACY_BEST_KEY = "typefast.personalBest";
   const SCORE_NAME_KEY = "typora.scoreName";
+  const DIFFICULTY_KEY = "typora.difficulty";
+  const LEGACY_SOLO_DIFFICULTY_KEY = "typora.soloDifficulty";
+  const MAX_DIFFICULTY = passageTiers.length - 1;
   const state = {
     duration: 60,
     mode: "solo",
@@ -31,11 +51,13 @@
     socketLoadPromise: null,
     roomCode: null,
     roomRound: null,
+    roomDifficulty: null,
     roomReady: false,
     roomStarted: false,
     roomPlayers: [],
     lastProgressAt: 0,
     playerName: "",
+    difficulty: 0,
     scoreSavingFor: null,
     scoreSavedFor: null,
     notificationTimeoutId: null
@@ -86,6 +108,7 @@
   }
 
   function updateModeUI() {
+    document.body.dataset.mode = state.mode;
     elements.modeButtons.forEach((button) => {
       const selected = button.dataset.mode === state.mode;
       button.classList.toggle("is-selected", selected);
@@ -154,6 +177,7 @@
     const hadOpponent = state.roomPlayers.some((player) => player.id !== state.socket?.id);
     const opponent = room.players.find((player) => player.id !== state.socket?.id);
     state.roomCode = room.code;
+    state.roomDifficulty = getPassageDifficulty(room.passage);
     state.roomPlayers = room.players;
     if (opponent && !hadOpponent) showNotification(`${opponent.name} is here!`);
     elements.roomInvite.hidden = false;
@@ -194,6 +218,18 @@
       elements.resultTitle.textContent = "It's a tie!";
       elements.resultMessage.textContent = `You both typed at ${mine.wpm} WPM.`;
     }
+    const hasPerfectRun = payload.players.some(
+      (player) => player.characters === state.passage.length && player.accuracy === 100
+    );
+    if (hasPerfectRun) {
+      state.roomDifficulty = Math.min(
+        MAX_DIFFICULTY,
+        (state.roomDifficulty ?? getPassageDifficulty(state.passage)) + 1
+      );
+      elements.resultMessage.textContent = state.roomDifficulty === MAX_DIFFICULTY
+        ? "A perfect run! The next rematch will use the hardest passage."
+        : `A perfect run! Level ${state.roomDifficulty + 1} is unlocked for the rematch.`;
+    }
     setLobbyStatus("Race complete. Choose a new duration or restart for a rematch.");
   }
 
@@ -221,6 +257,7 @@
         state.socket.on("disconnect", () => {
           if (state.mode === "multiplayer" && state.roomCode) {
             state.roomCode = null;
+            state.roomDifficulty = null;
             state.roomReady = false;
             elements.roomInvite.hidden = true;
             resetGame();
@@ -242,6 +279,7 @@
         state.socket.on("room:results", handleRoomResults);
         state.socket.on("room:opponent-left", () => {
           state.roomCode = null;
+          state.roomDifficulty = null;
           state.roomReady = false;
           state.roomStarted = false;
           state.roomPlayers = [];
@@ -285,6 +323,7 @@
   function leaveRoom() {
     if (state.socket?.connected && state.roomCode) state.socket.emit("room:leave");
     state.roomCode = null;
+    state.roomDifficulty = null;
     state.roomReady = false;
     state.roomStarted = false;
     state.roomRound = null;
@@ -351,18 +390,53 @@
     }
   }
 
+  function getSavedDifficulty() {
+    try {
+      const savedValue = localStorage.getItem(DIFFICULTY_KEY)
+        ?? localStorage.getItem(LEGACY_SOLO_DIFFICULTY_KEY);
+      const saved = Number(savedValue);
+      return Number.isInteger(saved)
+        ? Math.min(MAX_DIFFICULTY, Math.max(0, saved))
+        : 0;
+    } catch (error) {
+      console.warn("Could not read the saved typing difficulty.", error);
+      return 0;
+    }
+  }
+
+  function increaseDifficulty() {
+    if (state.difficulty >= MAX_DIFFICULTY) return false;
+    state.difficulty += 1;
+    try {
+      localStorage.setItem(DIFFICULTY_KEY, String(state.difficulty));
+    } catch (error) {
+      console.warn("Could not remember the typing difficulty on this device.", error);
+    }
+    return true;
+  }
+
+  function getPassageDifficulty(passage) {
+    const difficulty = passageTiers.findIndex((tier) => tier.includes(passage));
+    return difficulty === -1 ? 0 : difficulty;
+  }
+
   function updateBestDisplay() {
     const best = getBest();
     elements.best.innerHTML = `${best || "—"}<span class="unit">wpm</span>`;
   }
 
   function choosePassage() {
-    let index = Math.floor(Math.random() * passages.length);
-    if (passages.length > 1 && index === state.lastPassageIndex) {
-      index = (index + 1 + Math.floor(Math.random() * (passages.length - 1))) % passages.length;
+    const level = state.mode === "multiplayer" && state.roomCode
+      ? state.roomDifficulty ?? state.difficulty
+      : state.difficulty;
+    const availablePassages = passageTiers[level];
+    let index = Math.floor(Math.random() * availablePassages.length);
+    if (availablePassages.length > 1 && index === state.lastPassageIndex) {
+      index = (index + 1 + Math.floor(Math.random() * (availablePassages.length - 1)))
+        % availablePassages.length;
     }
     state.lastPassageIndex = index;
-    return passages[index];
+    return availablePassages[index];
   }
 
   function renderPassage(typedText = "") {
@@ -532,6 +606,24 @@
     } else {
       elements.resultTitle.textContent = "Nice work.";
     }
+    const completedPerfectPassage = elements.input.value.length === state.passage.length
+      && metrics.correct === state.passage.length;
+    if (
+      state.mode !== "multiplayer"
+      && completedPerfectPassage
+    ) {
+      elements.resultTitle.textContent = "Perfect passage!";
+      const modeName = state.mode === "bot" ? "Bot" : "Solo";
+      const personalBestMessage = isNewBest ? "New personal best! " : "";
+      const botResult = state.mode === "bot"
+        ? (metrics.wpm > state.botWpm ? "You beat the bot. " : (metrics.wpm === state.botWpm ? "It's a tie. " : ""))
+        : "";
+      if (increaseDifficulty()) {
+        elements.resultMessage.textContent = `${personalBestMessage}${botResult}${modeName} difficulty level ${state.difficulty + 1} unlocked. Restart for a harder passage.`;
+      } else {
+        elements.resultMessage.textContent = `${personalBestMessage}${botResult}You mastered the hardest ${modeName.toLowerCase()} level. Keep practicing!`;
+      }
+    }
     updateBestDisplay();
     elements.resultCard.hidden = false;
     elements.resultCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -627,7 +719,9 @@
         console.warn("Could not remember the leaderboard name on this device.", error);
       }
       if (state.finalResult !== result) return;
-      elements.saveMessage.textContent = "Score saved. Nice typing!";
+      elements.saveMessage.textContent = payload.personalBestUpdated === false
+        ? "Your highest score for this username is already on the leaderboard."
+        : "Personal best updated on the leaderboard!";
       elements.playerName.value = name;
       await loadLeaderboard();
     } catch (error) {
@@ -713,6 +807,7 @@
   });
 
   elements.playerName.value = getSavedScoreName();
+  state.difficulty = getSavedDifficulty();
   resetGame();
   loadLeaderboard();
 })();

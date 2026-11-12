@@ -41,6 +41,43 @@ const io = new Server(httpServer, {
 const rooms = new Map();
 const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+function normalizeScoreName(name) {
+  return name.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
+}
+
+function isBetterScore(candidate, current) {
+  return !current
+    || !Number.isInteger(current.wpm)
+    || !Number.isInteger(current.accuracy)
+    || candidate.wpm > current.wpm
+    || (candidate.wpm === current.wpm && candidate.accuracy > current.accuracy);
+}
+
+function getBestScoresByName(documents) {
+  const bestScores = new Map();
+  for (const document of documents) {
+    const score = document.data();
+    if (
+      typeof score.name !== "string"
+      || !Number.isInteger(score.wpm)
+      || !Number.isInteger(score.accuracy)
+    ) {
+      continue;
+    }
+    const key = normalizeScoreName(score.name);
+    if (!key) continue;
+    const current = bestScores.get(key);
+    if (isBetterScore(score, current)) {
+      bestScores.set(key, {
+        name: score.name,
+        wpm: score.wpm,
+        accuracy: score.accuracy
+      });
+    }
+  }
+  return bestScores;
+}
+
 app.disable("x-powered-by");
 app.use(cors({
   origin(origin, callback) {
@@ -56,19 +93,15 @@ app.get("/health", (_request, response) => {
 
 app.get("/api/leaderboard", async (_request, response, next) => {
   try {
-    const snapshot = await database
-      .collection("scores")
-      .orderBy("wpm", "desc")
-      .limit(10)
-      .get();
-    response.json(snapshot.docs.map((document) => {
-      const score = document.data();
-      return {
-        name: score.name,
-        wpm: score.wpm,
-        accuracy: score.accuracy
-      };
-    }));
+    const snapshot = await database.collection("scores").get();
+    const scores = [...getBestScoresByName(snapshot.docs).values()]
+      .sort((left, right) => (
+        right.wpm - left.wpm
+        || right.accuracy - left.accuracy
+        || left.name.localeCompare(right.name)
+      ))
+      .slice(0, 10);
+    response.json(scores);
   } catch (error) {
     next(error);
   }
@@ -89,14 +122,39 @@ app.post("/api/scores", async (request, response, next) => {
   }
 
   try {
-    await database.collection("scores").add({
-      name: cleanName,
-      wpm,
-      accuracy,
-      duration,
-      createdAt: FieldValue.serverTimestamp()
+    const scores = database.collection("scores");
+    const normalizedName = normalizeScoreName(cleanName);
+    const scoreRef = scores.doc(Buffer.from(normalizedName, "utf8").toString("base64url"));
+    const currentBestSnapshot = await scoreRef.get();
+    let previousBest = currentBestSnapshot.exists ? currentBestSnapshot.data() : null;
+    if (!previousBest) {
+      const existingScores = await scores.get();
+      previousBest = getBestScoresByName(existingScores.docs).get(normalizedName) || null;
+    }
+    if (!isBetterScore({ wpm, accuracy }, previousBest)) {
+      return response.status(200).json({ saved: false, personalBestUpdated: false });
+    }
+
+    let personalBestUpdated = false;
+    await database.runTransaction(async (transaction) => {
+      personalBestUpdated = false;
+      const snapshot = await transaction.get(scoreRef);
+      const current = snapshot.exists ? snapshot.data() : null;
+      if (isBetterScore({ wpm, accuracy }, current)) {
+        transaction.set(scoreRef, {
+          name: cleanName,
+          normalizedName,
+          wpm,
+          accuracy,
+          duration,
+          createdAt: FieldValue.serverTimestamp()
+        });
+        personalBestUpdated = true;
+      }
     });
-    return response.status(201).json({ saved: true });
+    return response
+      .status(personalBestUpdated ? 201 : 200)
+      .json({ saved: personalBestUpdated, personalBestUpdated });
   } catch (error) {
     return next(error);
   }
