@@ -1,3 +1,3 @@
 window.TYPORA_CONFIG = {
-  apiUrl: ""
+  apiUrl: "https://typora-api.onrender.com/"
 };
