@@ -597,6 +597,11 @@
       elements.saveMessage.textContent = "Enter your name to save this score automatically.";
       return;
     }
+    if (result.wpm < 1) {
+      elements.saveMessage.textContent = "Type at least 1 WPM to save a leaderboard score.";
+      elements.saveMessage.classList.add("is-error");
+      return;
+    }
     if (!/^[\p{L}\p{N} _.-]{2,20}$/u.test(name)) {
       elements.saveMessage.textContent = "Use 2–20 letters, numbers, spaces, dots, or dashes for your name.";
       elements.saveMessage.classList.add("is-error");
